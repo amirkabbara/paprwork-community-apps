@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "1.0.0",
+  "bundleId": "expense-tracker",
+  "name": "Expense Tracker",
+  "version": "1.0.0",
+  "createdAt": "2026-03-16T00:00:00.000Z",
+  "createdBy": "paprwork-team",
+  "minPaprworkVersion": "2.0.0",
+  "description": "Track daily expenses with category breakdowns and a visual chart. Uses the Papr DB API for persistent local storage.",
+  "app": {
+    "id": "expense-tracker",
+    "name": "Expense Tracker",
+    "version": "1.0.0",
+    "entryFile": "index.html",
+    "appPath": "apps/expense-tracker",
+    "description": "Track daily expenses with category breakdowns and charts"
+  },
+  "jobs": [],
+  "sqlite": [],
+  "deploymentProfiles": [
+    {
+      "id": "local-default",
+      "name": "Local Default",
+      "runtimeTarget": "local",
+      "environment": {}
+    }
+  ],
+  "sync": {
+    "preferredRoot": "~/PAPR",
+    "bundleSubpath": "bundles",
+    "cloudReady": true
+  }
+}

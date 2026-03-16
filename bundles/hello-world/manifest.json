@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "1.0.0",
+  "bundleId": "hello-world",
+  "name": "Hello World",
+  "version": "1.0.0",
+  "createdAt": "2026-03-16T00:00:00.000Z",
+  "createdBy": "paprwork-team",
+  "minPaprworkVersion": "2.0.0",
+  "description": "Minimal starter template for building Paprwork mini-apps. Demonstrates HTML structure, styling, and the Papr DB API.",
+  "app": {
+    "id": "hello-world",
+    "name": "Hello World",
+    "version": "1.0.0",
+    "entryFile": "index.html",
+    "appPath": "apps/hello-world",
+    "description": "Minimal starter template"
+  },
+  "jobs": [],
+  "sqlite": [],
+  "deploymentProfiles": [
+    {
+      "id": "local-default",
+      "name": "Local Default",
+      "runtimeTarget": "local",
+      "environment": {}
+    }
+  ],
+  "sync": {
+    "preferredRoot": "~/PAPR",
+    "bundleSubpath": "bundles",
+    "cloudReady": true
+  }
+}

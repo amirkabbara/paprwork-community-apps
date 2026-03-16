@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Expense Tracker</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <h1>Expense Tracker</h1>
+        <p class="header__subtitle" id="total-display">Total: $0.00</p>
+      </header>
+
+      <section class="add-form card">
+        <h2>Add Expense</h2>
+        <div class="form-row">
+          <input type="number" id="amount" placeholder="Amount" step="0.01" min="0" />
+          <select id="category">
+            <option value="food">Food</option>
+            <option value="transport">Transport</option>
+            <option value="entertainment">Entertainment</option>
+            <option value="shopping">Shopping</option>
+            <option value="bills">Bills</option>
+            <option value="health">Health</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <input type="text" id="description" placeholder="Description (optional)" />
+          <button id="add-btn">Add</button>
+        </div>
+      </section>
+
+      <div class="columns">
+        <section class="card chart-section">
+          <h2>By Category</h2>
+          <canvas id="chart" width="260" height="260"></canvas>
+          <div id="legend" class="legend"></div>
+        </section>
+
+        <section class="card list-section">
+          <h2>Recent Expenses</h2>
+          <div id="expense-list" class="expense-list"></div>
+        </section>
+      </div>
+    </div>
+    <script type="module" src="app.ts"></script>
+  </body>
+</html>

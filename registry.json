@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "1.0.0",
+  "bundles": [
+    {
+      "bundleId": "hello-world",
+      "name": "Hello World",
+      "description": "Minimal starter template for building Paprwork mini-apps. Demonstrates HTML structure, styling, and basic interactivity.",
+      "version": "1.0.0",
+      "author": "paprwork-team",
+      "tags": ["template", "starter"],
+      "minPaprworkVersion": "2.0.0",
+      "path": "bundles/hello-world"
+    },
+    {
+      "bundleId": "expense-tracker",
+      "name": "Expense Tracker",
+      "description": "Track daily expenses with category breakdowns and a visual chart. Uses the Papr DB API for persistent local storage.",
+      "version": "1.0.0",
+      "author": "paprwork-team",
+      "tags": ["finance", "charts", "data"],
+      "minPaprworkVersion": "2.0.0",
+      "path": "bundles/expense-tracker"
+    }
+  ]
+}
