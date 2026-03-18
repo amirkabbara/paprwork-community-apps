@@ -1,0 +1,22 @@
+{
+  "id": "06c8e329-7e5f-45a3-82d7-af91e7ffcac1",
+  "name": "Meeting Monitor",
+  "type": "bash",
+  "folder": "meetings",
+  "command": "bash monitor.sh",
+  "dependsOn": [],
+  "retries": {
+    "maxAttempts": 1,
+    "backoffMs": 1000
+  },
+  "retentionDays": 14,
+  "schedule": {
+    "enabled": true,
+    "cron": "*/1 * * * *"
+  },
+  "outputMode": "natural",
+  "memoryPolicy": "none",
+  "status": "pending",
+  "createdAt": "2026-03-18T18:48:10.278Z",
+  "updatedAt": "2026-03-18T18:48:10.278Z"
+}

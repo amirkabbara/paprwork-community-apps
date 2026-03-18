@@ -3,7 +3,7 @@
   "name": "Stop Recorder",
   "type": "shell",
   "folder": "meetings",
-  "command": "#!/bin/bash\n# Find the recorder job directory (has stop_signal mechanism)\nRECORDER_DIR=$(find ~/PAPR/jobs/*/data -name \"current_meeting.txt\" -exec dirname {} \\; 2>/dev/null | head -1)\nif [ -z \"$RECORDER_DIR\" ]; then\n  # Fallback: find any job dir with a recorder binary\n  RECORDER_DIR=$(find ~/PAPR/jobs/*/recorder -type f 2>/dev/null | head -1 | xargs dirname)/data\nfi\ntouch \"$RECORDER_DIR/stop_signal\" && echo \"Stop signal sent\"",
+  "command": "touch $HOME/PAPR/jobs/54837f40-1e64-4810-a387-f81151d014af/data/stop_signal && echo \"Stop signal sent\"",
   "dependsOn": [],
   "retries": {
     "maxAttempts": 1,
@@ -12,5 +12,7 @@
   "retentionDays": 14,
   "outputMode": "natural",
   "memoryPolicy": "none",
-  "status": "pending"
+  "status": "pending",
+  "createdAt": "2026-03-18T18:48:10.245Z",
+  "updatedAt": "2026-03-18T18:48:10.245Z"
 }

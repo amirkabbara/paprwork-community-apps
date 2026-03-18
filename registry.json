@@ -35,8 +35,8 @@
     {
       "bundleId": "meetings-manager",
       "name": "Meetings Manager",
-      "description": "AI-powered meeting manager \u2014 calendar sync, recording, transcription, summarization, prep docs, and memory sync",
-      "version": "1.0.0",
+      "description": "AI-powered meeting manager \u2014 auto-detects meetings from calendar & Zoom/Meet/Teams, sends native macOS notifications with Record button, records audio, transcribes with Whisper, generates AI summaries merged with your notes, and syncs to memory.",
+      "version": "2.0.0",
       "author": "amirkabbara",
       "tags": [
         "meetings",
@@ -44,11 +44,13 @@
         "transcription",
         "summarization",
         "productivity",
-        "ai-agent"
+        "ai-agent",
+        "notifications"
       ],
       "minPaprworkVersion": "2.0.0",
       "requirements": [
-        "ANTHROPIC_API_KEY"
+        "ANTHROPIC_API_KEY",
+        "OPENAI_PLATFORM_KEY"
       ],
       "platform": [
         "macos"

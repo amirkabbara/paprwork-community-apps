@@ -1,64 +1,139 @@
-import subprocess, sqlite3, os, glob
+import os
+import sqlite3
+import json
+import subprocess
+import tempfile
+from pathlib import Path
+from openai import OpenAI
 
-# Dynamic path discovery
-def find_meetings_db():
-    for db in glob.glob(os.path.expanduser("~/PAPR/jobs/*/data/data.db")):
-        try:
-            conn = sqlite3.connect(db)
-            tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
-            conn.close()
-            if 'meetings' in tables:
-                return db
-        except: pass
+# Paths
+RECORDER_JOB_DIR = os.path.expanduser("~/PAPR/jobs/54837f40-1e64-4810-a387-f81151d014af")
+MEETINGS_DB = os.path.expanduser("~/PAPR/jobs/8eea1893-4ca5-48ed-bfb4-187b9456fb31/data/data.db")
+AUDIO_FILE = os.path.join(RECORDER_JOB_DIR, "data", "recording.wav")
+MAX_WHISPER_SIZE = 24 * 1024 * 1024  # 24MB to stay under 25MB limit
+
+def get_current_meeting_id():
+    """Read the current meeting ID from the recorder's state file"""
+    state_file = os.path.join(RECORDER_JOB_DIR, "data", "current_meeting.txt")
+    if os.path.exists(state_file):
+        return open(state_file).read().strip()
     return None
 
-def find_recorder_dir():
-    for d in glob.glob(os.path.expanduser("~/PAPR/jobs/*/data/recording.wav")):
-        return os.path.dirname(d)
-    for d in glob.glob(os.path.expanduser("~/PAPR/jobs/*/recorder")):
-        return os.path.join(os.path.dirname(d), "data")
-    return None
-
-MEETINGS_DB = find_meetings_db()
-RECORDER_JOB_DIR = find_recorder_dir()
-
-if not MEETINGS_DB:
-    print("ERROR: meetings DB not found"); exit(1)
-if not RECORDER_JOB_DIR:
-    print("ERROR: recorder job dir not found"); exit(1)
-
-AUDIO_PATH = os.path.join(RECORDER_JOB_DIR, "recording.wav")
-
-print(f"DB: {MEETINGS_DB}")
-print(f"Audio: {AUDIO_PATH}")
-
-conn = sqlite3.connect(MEETINGS_DB)
-rows = conn.execute("SELECT id, title FROM meetings WHERE status='recorded' AND (transcript IS NULL OR transcript='')").fetchall()
-
-if not rows:
-    print("No meetings to transcribe"); exit(0)
-
-for mid, title in rows:
-    print(f"Transcribing: {title} ({mid})")
-    if not os.path.exists(AUDIO_PATH):
-        print(f"  No audio file at {AUDIO_PATH}, skipping"); continue
+def compress_if_needed(audio_path):
+    """Compress WAV to MP3 if file exceeds Whisper's 25MB limit"""
+    file_size = os.path.getsize(audio_path)
+    if file_size <= MAX_WHISPER_SIZE:
+        return audio_path, False
     
+    print(f"File too large ({file_size // (1024*1024)}MB > 24MB), compressing to MP3...")
+    mp3_path = audio_path.replace(".wav", "_compressed.mp3")
     result = subprocess.run(
-        ["curl", "-s", "https://api.openai.com/v1/audio/transcriptions",
-         "-H", f"Authorization: Bearer {os.environ.get('OPENAI_API_KEY','')}",
-         "-F", f"file=@{AUDIO_PATH}", "-F", "model=whisper-1"],
+        ["ffmpeg", "-y", "-i", audio_path, "-ac", "1", "-ar", "16000", "-b:a", "64k", mp3_path],
         capture_output=True, text=True
     )
+    if result.returncode != 0:
+        print(f"ffmpeg error: {result.stderr}")
+        raise RuntimeError("Failed to compress audio")
     
-    import json
-    try:
-        transcript = json.loads(result.stdout).get("text", "")
-    except:
-        print(f"  Whisper error: {result.stdout[:200]}"); continue
-    
-    conn.execute("UPDATE meetings SET transcript=?, status='pending', updated_at=strftime('%s','now') WHERE id=?", (transcript, mid))
-    conn.commit()
-    print(f"  Done - {len(transcript)} chars")
+    new_size = os.path.getsize(mp3_path)
+    print(f"Compressed: {file_size // (1024*1024)}MB -> {new_size // (1024*1024)}MB")
+    return mp3_path, True
 
-conn.close()
-print("All done")
+def transcribe_audio(audio_path):
+    """Send audio to Whisper API for transcription, compressing if needed"""
+    client = OpenAI()
+    
+    upload_path, was_compressed = compress_if_needed(audio_path)
+    file_size = os.path.getsize(upload_path)
+    print(f"Transcribing audio file: {upload_path} ({file_size} bytes)")
+    
+    try:
+        with open(upload_path, "rb") as f:
+            transcript = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=f,
+                response_format="verbose_json",
+                timestamp_granularities=["segment"]
+            )
+    finally:
+        if was_compressed and os.path.exists(upload_path):
+            os.remove(upload_path)
+    
+    return transcript
+
+def save_transcript(meeting_id, transcript):
+    """Save transcript to meetings database"""
+    conn = sqlite3.connect(MEETINGS_DB)
+    
+    # Build full text
+    full_text = transcript.text
+    
+    # Build segments JSON for detailed view
+    segments = []
+    if hasattr(transcript, 'segments') and transcript.segments:
+        for seg in transcript.segments:
+            segments.append({
+                "start": seg.start if hasattr(seg, 'start') else seg.get('start', 0),
+                "end": seg.end if hasattr(seg, 'end') else seg.get('end', 0),
+                "text": seg.text if hasattr(seg, 'text') else seg.get('text', '')
+            })
+    
+    duration = 0
+    if segments:
+        duration = int(segments[-1]["end"])
+    
+    conn.execute("""
+        UPDATE meetings 
+        SET transcript = ?, 
+            duration = ?,
+            status = 'pending',
+            updated_at = strftime('%s','now')
+        WHERE id = ?
+    """, (full_text, duration, meeting_id))
+    
+    conn.commit()
+    conn.close()
+    
+    print(f"Transcript saved: {len(full_text)} chars, {duration}s duration")
+    print(f"Meeting {meeting_id} status -> pending (ready for summarizer)")
+    return full_text
+
+def main():
+    # Check audio file exists
+    if not os.path.exists(AUDIO_FILE):
+        print(f"ERROR: No audio file at {AUDIO_FILE}")
+        return
+    
+    file_size = os.path.getsize(AUDIO_FILE)
+    if file_size < 1000:
+        print(f"ERROR: Audio file too small ({file_size} bytes) - recording may have failed")
+        return
+    
+    # Get meeting ID
+    meeting_id = get_current_meeting_id()
+    if not meeting_id:
+        print("ERROR: No current meeting ID found")
+        return
+    
+    print(f"Processing meeting: {meeting_id}")
+    
+    # Mark as transcribing so the UI shows progress
+    conn = sqlite3.connect(MEETINGS_DB)
+    conn.execute("UPDATE meetings SET status='transcribing', updated_at=strftime('%s','now') WHERE id=?", (meeting_id,))
+    conn.commit()
+    conn.close()
+    print(f"Meeting {meeting_id} status -> transcribing")
+    
+    # Transcribe
+    transcript = transcribe_audio(AUDIO_FILE)
+    
+    # Save
+    text = save_transcript(meeting_id, transcript)
+    
+    # Preview
+    preview = text[:500] + "..." if len(text) > 500 else text
+    print(f"\nTranscript preview:\n{preview}")
+    print("\nDone! Summarizer can now process this meeting.")
+
+if __name__ == "__main__":
+    main()

@@ -1,5 +1,14 @@
 [
   {
+    "id": "06c8e329-7e5f-45a3-82d7-af91e7ffcac1:Meeting Monitor (06c8e329)",
+    "type": "sqlite",
+    "jobId": "06c8e329-7e5f-45a3-82d7-af91e7ffcac1",
+    "alias": "Meeting Monitor (06c8e329)",
+    "dbPath": "",
+    "tables": [],
+    "linkedAt": "2026-03-18T17:49:58.016Z"
+  },
+  {
     "id": "4d58f7c1-40b5-4aed-805f-f983c0ac0c4c:Meeting Prep Agent (4d58f7c1)",
     "type": "sqlite",
     "jobId": "4d58f7c1-40b5-4aed-805f-f983c0ac0c4c",

@@ -1,49 +1,39 @@
 # Meetings Manager
 
-An AI-powered meeting management app for macOS that handles the full lifecycle: **calendar sync → meeting prep → recording → transcription → summarization → memory sync**.
+AI-powered meeting manager that auto-detects meetings from your calendar and Zoom/Meet/Teams, records audio, transcribes with Whisper, generates AI summaries, and syncs to memory. Features native macOS notifications with Record buttons, calendar integration via EventKit, and a full recording pipeline.
 
-## What It Does
+## Installation
 
-- **📅 Calendar Sync** — Reads your macOS Calendar (via EventKit) and displays upcoming meetings with attendees
-- **🎙️ Recording** — Records system audio during meetings with one-click start/stop
-- **✍️ Transcription** — Transcribes recordings using OpenAI Whisper
-- **📝 AI Summarization** — Generates structured summaries with key decisions, action items, and follow-ups
-- **🔍 Meeting Prep** — Auto-generates prep docs by searching PAPR Memory, prior meeting notes, and external sources (Apollo, Exa) for attendee context
-- **🧠 Memory Sync** — Stores meeting summaries and participant profiles in PAPR Memory for future reference
+### Option 1: Import via Paprwork Agent
+```
+Agent: "Import the bundle from $HOME/PAPR/bundles/bundle-1773859688888"
+```
 
-## Pipeline (8 Jobs)
+### Option 2: Import from GitHub
+1. Push this bundle to GitHub
+2. Share the URL with others
+3. They import: "Import the bundle from github.com/username/repo"
 
-| Job | Type | What it does |
-|-----|------|-------------|
-| **Calendar Reader** | Python (EventKit) | Syncs macOS calendar events to SQLite — 60 days back, 30 days forward |
-| **Check Screen Recording Permission** | Bash | Verifies macOS screen recording permission for audio capture |
-| **System Audio Recorder** | Bash | Records system audio to WAV using native recorder binary |
-| **Stop Recorder** | Bash | Sends stop signal to end recording |
-| **Whisper Transcriber** | Python | Sends WAV to OpenAI Whisper API, writes transcript to DB |
-| **Meeting Summarizer** | AI Agent | Generates structured summary + topic tags from transcript |
-| **Meeting Prep Agent** | AI Agent | Builds prep docs from memory, prior notes, Apollo, and Exa |
-| **Meeting Memory Sync** | AI Agent | Stores summaries and attendee profiles in PAPR Memory |
+## Contents
+
+- **App**: Meetings Manager (ea6d8d7c-a15e-4c02-8273-117450b498f4)
+- **Jobs**: 9 job(s)
+  - Check Screen Recording Permission (bash)
+  - Whisper Transcriber (python)
+  - System Audio Recorder (bash)
+  - Stop Recorder (bash)
+  - Meeting Memory Sync (agent)
+  - Meeting Summarizer (agent)
+  - Calendar Reader (bash)
+  - Meeting Prep Agent (agent)
+  - Meeting Monitor (bash)
 
 ## Requirements
 
-| Key | Required? | Used by |
-|-----|-----------|---------|
-| `ANTHROPIC_API_KEY` | **Yes** | Meeting Summarizer, Memory Sync, Prep Agent |
-| `OPENAI_PLATFORM_KEY` | Optional | Whisper Transcriber (transcription) |
-| `APOLLO_API_KEY` | Optional | Meeting Prep Agent (attendee enrichment) |
-| `EXA_API_KEY` | Optional | Meeting Prep Agent (web search) |
-| `PAPR_MEMORY_API_KEY` | Optional | Meeting Memory Sync (long-term memory storage) |
+- Paprwork v2.0.0 or later
+- Python 3.8+ for Python jobs
 
-## Platform
 
-**macOS only** — uses EventKit for calendar access and a native audio recorder binary.
+## Version
 
-## Install
-
-Import this bundle in Paprwork → Community Apps, or manually:
-
-```
-paprwork import-bundle ./bundle-1773825249864
-```
-
-After import, grant Calendar and Screen Recording permissions when prompted.
+1.0.0 - Created 2026-03-18
