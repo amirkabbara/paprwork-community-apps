@@ -1,0 +1,15 @@
+# Private data — never commit
+*.db
+*.sqlite
+*.db-shm
+*.db-wal
+
+# Internal version history
+.versions/
+
+# Logs (may contain meeting transcripts/summaries)
+logs/
+*.log
+
+# macOS
+.DS_Store
