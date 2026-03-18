@@ -2,14 +2,21 @@
   "schemaVersion": "1.0.0",
   "bundleId": "meetings-manager",
   "name": "Meetings Manager",
-  "version": "1.0.0",
-  "createdAt": "2026-03-18T09:14:12.993Z",
+  "version": "2.0.0",
+  "createdAt": "2026-03-18T18:48:10.618Z",
   "minPaprworkVersion": "2.0.0",
+  "description": "AI-powered meeting manager that auto-detects meetings from your calendar and Zoom/Meet/Teams, records audio, transcribes with Whisper, generates AI summaries, and syncs to memory. Features native macOS notifications with Record buttons, calendar integration via EventKit, and a full recording pipeline.",
   "requirements": [
-    "ANTHROPIC_API_KEY"
+    "ANTHROPIC_API_KEY",
+    "APOLLO_API_KEY",
+    "EXA_API_KEY",
+    "OPENAI_PLATFORM_KEY",
+    "openai",
+    "pyobjc-framework-EventKit"
   ],
   "platform": [
-    "macos"
+    "macos",
+    "windows"
   ],
   "app": {
     "id": "ea6d8d7c-a15e-4c02-8273-117450b498f4",
@@ -24,7 +31,7 @@
       "id": "eb3200be-fa32-4a83-8313-94df426dea89",
       "name": "Check Screen Recording Permission",
       "type": "bash",
-      "command": "#!/bin/bash\n# Find meetings DB dynamically\nMEETINGS_DB=$(for db in ~/PAPR/jobs/*/data/data.db; do sqlite3 \"$db\" \"SELECT name FROM sqlite_master WHERE name='meetings'\" 2>/dev/null | grep -q meetings && echo \"$db\" && break; done)\nif [ -z \"$MEETINGS_DB\" ]; then echo \"ERROR: meetings DB not found\"; exit 1; fi\n# Find recorder binary dynamically\nRECORDER=$(find ~/PAPR/jobs/*/recorder -type f 2>/dev/null | head -1)\nif [ -z \"$RECORDER\" ]; then echo \"ERROR: recorder binary not found\"; exit 1; fi\nRESULT=$($RECORDER --check-permission 2>&1)\necho \"$RESULT\"\nsqlite3 \"$MEETINGS_DB\" \"DELETE FROM permission_checks; INSERT INTO permission_checks (check_time, result) VALUES (datetime('now'), '$RESULT');\"\necho \"Written to DB: $RESULT\"",
+      "command": "#!/bin/bash\nMEETINGS_DB=\"$HOME/PAPR/jobs/8eea1893-4ca5-48ed-bfb4-187b9456fb31/data/data.db\"\nRESULT=$($HOME/PAPR/jobs/54837f40-1e64-4810-a387-f81151d014af/recorder --check-permission 2>&1)\necho \"$RESULT\"\nsqlite3 \"$MEETINGS_DB\" \"DELETE FROM permission_checks; INSERT INTO permission_checks (check_time, result) VALUES (datetime('now'), '$RESULT');\"\necho \"Written to DB: $RESULT\"",
       "dependsOn": [],
       "env": {},
       "outputTables": []
@@ -42,7 +49,7 @@
       "id": "54837f40-1e64-4810-a387-f81151d014af",
       "name": "System Audio Recorder",
       "type": "bash",
-      "command": "#!/bin/bash\n# Find meetings DB dynamically\nMEETINGS_DB=$(for db in ~/PAPR/jobs/*/data/data.db; do sqlite3 \"$db\" \"SELECT name FROM sqlite_master WHERE name='meetings'\" 2>/dev/null | grep -q meetings && echo \"$db\" && break; done)\nif [ -z \"$MEETINGS_DB\" ]; then echo \"ERROR: meetings DB not found\"; exit 1; fi\nMEETING_ID=$(sqlite3 \"$MEETINGS_DB\" \"SELECT id FROM meetings WHERE status='recording' ORDER BY created_at DESC LIMIT 1\")\nif [ -z \"$MEETING_ID\" ]; then\n  echo \"ERROR: No meeting with status=recording found\"\n  exit 1\nfi\necho \"$MEETING_ID\" > data/current_meeting.txt\nrm -f data/stop_signal data/recording.wav\necho \"Recording meeting: $MEETING_ID\"\n./recorder data/recording.wav data/stop_signal\nFILE_SIZE=$(stat -f%z data/recording.wav 2>/dev/null || echo \"0\")\necho \"Recording file size: $FILE_SIZE bytes\"\nif [ \"$FILE_SIZE\" -gt 1000 ]; then\n  AUDIO_PATH=\"$(pwd)/data/recording.wav\"\n  sqlite3 \"$MEETINGS_DB\" \"UPDATE meetings SET status='recorded', audio_path='$AUDIO_PATH', updated_at=strftime('%s','now') WHERE id='$MEETING_ID'\"\n  echo \"Meeting $MEETING_ID status updated to recorded\"\nelse\n  sqlite3 \"$MEETINGS_DB\" \"UPDATE meetings SET status='failed', updated_at=strftime('%s','now') WHERE id='$MEETING_ID'\"\n  echo \"ERROR: Recording failed - empty file\"\n  exit 1\nfi",
+      "command": "#!/bin/bash\nMEETINGS_DB=\"$HOME/PAPR/jobs/8eea1893-4ca5-48ed-bfb4-187b9456fb31/data/data.db\"\nMEETING_ID=$(sqlite3 \"$MEETINGS_DB\" \"SELECT id FROM meetings WHERE status='recording' ORDER BY created_at DESC LIMIT 1\")\nif [ -z \"$MEETING_ID\" ]; then\n  echo \"ERROR: No meeting with status=recording found\"\n  exit 1\nfi\necho \"$MEETING_ID\" > data/current_meeting.txt\nrm -f data/stop_signal data/recording.wav\necho \"Recording meeting: $MEETING_ID\"\n./recorder data/recording.wav data/stop_signal\n# Check if recording produced actual audio\nFILE_SIZE=$(stat -f%z data/recording.wav 2>/dev/null || echo \"0\")\necho \"Recording file size: $FILE_SIZE bytes\"\nif [ \"$FILE_SIZE\" -gt 1000 ]; then\n  # Copy to a stable location with meeting ID\n  AUDIO_PATH=\"$HOME/PAPR/jobs/54837f40-1e64-4810-a387-f81151d014af/data/recording.wav\"\n  sqlite3 \"$MEETINGS_DB\" \"UPDATE meetings SET status='recorded', audio_path='$AUDIO_PATH', updated_at=strftime('%s','now') WHERE id='$MEETING_ID'\"\n  echo \"Meeting $MEETING_ID status updated to 'recorded'\"\nelse\n  sqlite3 \"$MEETINGS_DB\" \"UPDATE meetings SET status='failed', updated_at=strftime('%s','now') WHERE id='$MEETING_ID'\"\n  echo \"ERROR: Recording failed - empty file\"\n  exit 1\nfi",
       "dependsOn": [],
       "env": {},
       "outputTables": []
@@ -51,7 +58,7 @@
       "id": "5a5c47c7-46f0-430e-8b01-499bdf65de42",
       "name": "Stop Recorder",
       "type": "bash",
-      "command": "#!/bin/bash\n# Find the recorder job directory (has stop_signal mechanism)\nRECORDER_DIR=$(find ~/PAPR/jobs/*/data -name \"current_meeting.txt\" -exec dirname {} \\; 2>/dev/null | head -1)\nif [ -z \"$RECORDER_DIR\" ]; then\n  # Fallback: find any job dir with a recorder binary\n  RECORDER_DIR=$(find ~/PAPR/jobs/*/recorder -type f 2>/dev/null | head -1 | xargs dirname)/data\nfi\ntouch \"$RECORDER_DIR/stop_signal\" && echo \"Stop signal sent\"",
+      "command": "touch $HOME/PAPR/jobs/54837f40-1e64-4810-a387-f81151d014af/data/stop_signal && echo \"Stop signal sent\"",
       "dependsOn": [],
       "env": {},
       "outputTables": []
@@ -69,7 +76,7 @@
       "id": "8eea1893-4ca5-48ed-bfb4-187b9456fb31",
       "name": "Meeting Summarizer",
       "type": "agent",
-      "command": "Summarize all pending meeting transcripts and generate smart tags.\n\nStep 0: Find this job's database. Run:\nfor db in ~/PAPR/jobs/*/data/data.db; do sqlite3 \"$db\" \"SELECT name FROM sqlite_master WHERE name='meetings'\" 2>/dev/null | grep -q meetings && echo \"$db\" && break; done\nStore the output path as DB_PATH. Use this path for ALL sqlite3 commands below.\n\nStep 1: Read all pending meetings:\nsqlite3 DB_PATH \"SELECT id, title, transcript, notes FROM meetings WHERE status='pending' AND transcript != ''\"\n\nStep 2: For each meeting, generate TWO things:\n\nA) A unified summary document. If the user wrote notes during the meeting, weave them INTO the summary \u2014 they represent what the user found most important. Do NOT create a separate \"Your Notes\" section.\n\nStructure:\n## Overview\nBrief 2-3 sentence summary.\n\n## Key Decisions\n- Bullet points\n\n## Action Items\n- [ ] Each as a checkbox\n\n## Follow-ups\n- What needs attention next\n\nB) A JSON array of 2-5 short topic tags that describe this meeting. Examples: [\"Product\", \"Engineering\"], [\"Sales\", \"Demo\", \"Q2\"], [\"1:1\", \"Performance\"], [\"Design\", \"Review\"]. Be specific and useful \u2014 infer from content, not just keywords. Output as valid JSON array on a single line.\n\nStep 3: Write summary AND tags back:\nsqlite3 DB_PATH \"UPDATE meetings SET summary='SUMMARY_TEXT', tags='TAGS_JSON', status='summarized', updated_at=strftime('%s','now') WHERE id='MEETING_ID'\"\n\nWhere TAGS_JSON is the JSON array string e.g. '[\"Product\",\"Engineering\"]'\n\nIMPORTANT: Escape single quotes by doubling them in SQL. Write tags as a JSON array string.",
+      "command": "Summarize all pending meeting transcripts, merge with any user notes, and generate smart tags.\n\nStep 0: Find this job's database. Run:\nfor db in ~/PAPR/jobs/*/data/data.db; do sqlite3 \"$db\" \"SELECT name FROM sqlite_master WHERE name='meetings'\" 2>/dev/null | grep -q meetings && echo \"$db\" && break; done\nStore the output path as DB_PATH. Use this path for ALL sqlite3 commands below.\n\nStep 1: Read all pending meetings:\nsqlite3 DB_PATH \"SELECT id, title, transcript, notes FROM meetings WHERE status='pending' AND transcript != ''\"\n\nStep 2: For each meeting, generate TWO things:\n\nA) A unified notes document. If the user wrote notes during the meeting (in the `notes` column), weave them INTO the summary \u2014 they represent what the user found most important. Do NOT create a separate section for user notes; integrate them naturally as highlights or emphasis points within the relevant sections.\n\nStructure:\n## Overview\nBrief 2-3 sentence summary.\n\n## Key Decisions\n- Bullet points\n\n## Action Items\n- [ ] Each as a checkbox\n\n## Follow-ups\n- What needs attention next\n\nB) A JSON array of 2-5 short topic tags that describe this meeting. Examples: [\"Product\", \"Engineering\"], [\"Sales\", \"Demo\", \"Q2\"]. Be specific and useful. Output as valid JSON array on a single line.\n\nStep 3: Write the merged notes, tags, AND summary back:\nsqlite3 DB_PATH \"UPDATE meetings SET notes='MERGED_NOTES', summary='MERGED_NOTES', tags='TAGS_JSON', status='summarized', updated_at=strftime('%s','now') WHERE id='MEETING_ID'\"\n\nSave the SAME content to both `notes` and `summary` columns. The `notes` column is what the user sees; `summary` is a backup of the AI-generated version.\n\nIMPORTANT: Escape single quotes by doubling them in SQL. Write tags as a JSON array string.",
       "dependsOn": [],
       "env": {},
       "outputTables": []
@@ -91,6 +98,15 @@
       "dependsOn": [],
       "env": {},
       "outputTables": []
+    },
+    {
+      "id": "06c8e329-7e5f-45a3-82d7-af91e7ffcac1",
+      "name": "Meeting Monitor",
+      "type": "bash",
+      "command": "bash monitor.sh",
+      "dependsOn": [],
+      "env": {},
+      "outputTables": []
     }
   ],
   "sqlite": [],
@@ -106,11 +122,5 @@
     "preferredRoot": "~/PAPR",
     "bundleSubpath": "bundles",
     "cloudReady": true
-  },
-  "optionalRequirements": [
-    "APOLLO_API_KEY",
-    "EXA_API_KEY",
-    "PAPR_MEMORY_API_KEY"
-  ],
-  "icon": "<svg width=\"36\" height=\"36\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\" ry=\"2\"/><line x1=\"16\" y1=\"2\" x2=\"16\" y2=\"6\"/><line x1=\"8\" y1=\"2\" x2=\"8\" y2=\"6\"/><line x1=\"3\" y1=\"10\" x2=\"21\" y2=\"10\"/><polygon points=\"10,14 10,20 15,17\" fill=\"currentColor\" stroke=\"none\"/></svg>"
+  }
 }

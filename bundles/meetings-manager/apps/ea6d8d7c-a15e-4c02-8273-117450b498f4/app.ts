@@ -47,7 +47,7 @@ let calDayNavDir: 'left'|'right' = 'right';
 let calDayView: 'focus'|'all' = 'focus';
 let calWeekOffset: number = 0;
 let mainPage: 'meetings' | 'notes' = 'meetings';
-let activeTab: 'summary' | 'notes' | 'transcript' | 'prep' = 'summary';
+let activeTab: 'notes' | 'transcript' | 'prep' = 'notes';
 let selectedCalId: string | null = null;
 let prepPollInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -131,7 +131,7 @@ async function stopRecording(): Promise<void> {
   if (!recordingId) return;
   const editor = document.getElementById('notes-editor') as HTMLElement;
   if (editor) {
-    const notes = editor.innerText.trim();
+    const notes = editor.innerHTML.trim();
     if (notes) await w("UPDATE meetings SET notes=?, updated_at=strftime('%s','now') WHERE id=?", [notes, recordingId]);
   }
   isRecording = false;
@@ -173,20 +173,22 @@ function startPoll(mid: string): void {
   }, 2000);
 }
 
+function flushSave(): void {
+  const editor = document.getElementById('notes-editor') as HTMLElement;
+  const id = isRecording ? recordingId : selectedId;
+  if (!editor || !id) return;
+  const html = editor.innerHTML.trim();
+  if (saveTimeout) { clearTimeout(saveTimeout); saveTimeout = null; }
+  if (activeTab === 'prep' && selectedCalId) {
+    w("UPDATE calendar_events SET prep_doc=? WHERE id=?", [html, selectedCalId]);
+  } else if (activeTab === 'notes') {
+    w("UPDATE meetings SET notes=?, updated_at=strftime('%s','now') WHERE id=?", [html, id]);
+  }
+}
+
 function autoSave(): void {
   if (saveTimeout) clearTimeout(saveTimeout);
-  saveTimeout = setTimeout(async () => {
-    const editor = document.getElementById('notes-editor') as HTMLElement;
-    const id = isRecording ? recordingId : selectedId;
-    if (!editor || !id) return;
-    const text = editor.innerText.trim();
-    if (!text) return;
-    if (activeTab === 'prep' && selectedCalId) {
-      await w("UPDATE calendar_events SET prep_doc=? WHERE id=?", [text, selectedCalId]);
-    } else {
-      await w("UPDATE meetings SET notes=?, updated_at=strftime('%s','now') WHERE id=?", [text, id]);
-    }
-  }, 1500);
+  saveTimeout = setTimeout(() => flushSave(), 1500);
 }
 
 // Find linked CalEvent: first by explicit meeting_id, then by title+date fuzzy match
@@ -250,6 +252,26 @@ async function recoverStuckPreps(): Promise<void> {
   }
 }
 
+// Recover recording state on app load (e.g. after navigating away or refresh)
+async function recoverRecordingState(): Promise<void> {
+  const rows = await q("SELECT id, date FROM meetings WHERE status='recording' LIMIT 1");
+  if (rows.length > 0) {
+    const m = rows[0];
+    isRecording = true;
+    recordingId = m.id;
+    permissionGranted = true;
+    const startTime = new Date(m.date).getTime();
+    elapsedSeconds = Math.max(0, Math.floor((Date.now() - startTime) / 1000));
+    if (!timerInterval) {
+      timerInterval = setInterval(() => {
+        elapsedSeconds++;
+        const el = document.getElementById('rec-timer');
+        if (el) el.textContent = fmtDur(elapsedSeconds);
+      }, 1000);
+    }
+  }
+}
+
 async function deleteMeeting(id: string, e: Event): Promise<void> {
   e.stopPropagation();
   await w("DELETE FROM meetings WHERE id=?", [id]);
@@ -258,11 +280,26 @@ async function deleteMeeting(id: string, e: Event): Promise<void> {
 }
 
 function openMeeting(id: string, tab?: string): void {
-  selectedId = id; view = 'meeting'; activeTab = tab || 'summary';
+  selectedId = id; view = 'meeting'; activeTab = (tab as any) || 'notes';
   const m = meetings.find(x => x.id === id);
   if (m) {
     const linkedEv = findLinkedCalEvent(m);
     selectedCalId = linkedEv?.id || null;
+    // Recover recording state if navigating back to an active recording
+    if (m.status === 'recording' && !isRecording) {
+      isRecording = true;
+      recordingId = id;
+      permissionGranted = true;
+      if (!timerInterval) {
+        const startTime = new Date(m.date).getTime();
+        elapsedSeconds = Math.max(0, Math.floor((Date.now() - startTime) / 1000));
+        timerInterval = setInterval(() => {
+          elapsedSeconds++;
+          const el = document.getElementById('rec-timer');
+          if (el) el.textContent = fmtDur(elapsedSeconds);
+        }, 1000);
+      }
+    }
     if (['stopping','recorded','transcribing','pending'].includes(m.status)) startPoll(id);
     if (m.status === 'stopping') triggerWhisperWhenReady(id);
     if (m.status === 'recorded') runJob(WHISPER_JOB).catch(() => {});
@@ -998,9 +1035,8 @@ function renderMeeting(): string {
       ${showTabs ? `
       <div class="meeting-tabs">
         <div class="meeting-tabs-left">
-          <button class="meeting-tab${activeTab === 'summary' ? ' active' : ''}" data-tab="summary">${icon('note', 14)} Summary</button>
+          <button class="meeting-tab${activeTab === 'notes' ? ' active' : ''}" data-tab="notes">${icon('note', 14)} Notes</button>
           ${ev?.prep_status === 'ready' ? `<button class="meeting-tab${activeTab === 'prep' ? ' active' : ''}" data-tab="prep">${icon('sparkle', 14)} Prep</button>` : ''}
-          ${hasNotes ? `<button class="meeting-tab${activeTab === 'notes' ? ' active' : ''}" data-tab="notes">${icon('note', 14)} Your Notes</button>` : ''}
           ${hasTranscript ? `<button class="meeting-tab${activeTab === 'transcript' ? ' active' : ''}" data-tab="transcript">${icon('mic', 14)} Transcript</button>` : ''}
         </div>
         <div class="meeting-tabs-right">${renderMeetingMeta(m)}</div>
@@ -1032,7 +1068,7 @@ function renderDetailBody(m: Meeting | undefined): string {
     const worDone = s === 'pending';
     const sumActive = s === 'pending';
     return `
-      ${m.notes ? `<div class="notes-editor notes-readonly">${formatSummary(m.notes)}</div>` : ''}
+      ${m.notes ? `<div class="notes-editor notes-readonly">${/<[a-z][\s\S]*>/i.test(m.notes) ? m.notes : formatSummary(m.notes)}</div>` : ''}
       <div class="pipeline-progress">
         <div class="pipeline-step ${recDone ? 'done' : 'active'}"><div class="pipeline-step-dot"></div><span>${recDone ? 'Recorded' : 'Saving audio\u2026'}</span></div>
         <div class="pipeline-connector"></div>
@@ -1047,8 +1083,17 @@ function renderDetailBody(m: Meeting | undefined): string {
   const hasSummary = m.summary?.trim();
   const hasNotes = m.notes?.trim();
 
-  if (activeTab === 'notes' && hasNotes) {
-    return `<div id="notes-editor" class="notes-editor notes-editable" contenteditable="true" spellcheck="true">${formatSummary(m.notes)}</div>`;
+  if (activeTab === 'notes') {
+    // Notes tab: show AI summary + user notes merged, or just user notes, or empty
+    // Detect if content is already HTML (edited & saved) vs raw markdown (from AI)
+    const isHtml = (s: string) => /<[a-z][\s\S]*>/i.test(s);
+    const fmt = (s: string) => isHtml(s) ? s : formatSummary(s);
+    let content = '';
+    if (hasSummary && hasNotes) content = fmt(m.summary) + '<hr style="margin:24px 0;opacity:.15">' + fmt(m.notes);
+    else if (hasSummary) content = fmt(m.summary);
+    else if (hasNotes) content = fmt(m.notes);
+    const empty = !hasSummary && !hasNotes;
+    return `<div id="notes-editor" class="notes-editor notes-editable${empty ? ' is-empty' : ''}" contenteditable="true" spellcheck="true" data-placeholder="Add your notes\u2026">${content}</div>`;
   }
   if (activeTab === 'prep') {
     const ev = findLinkedCalEvent(m);
@@ -1061,17 +1106,18 @@ function renderDetailBody(m: Meeting | undefined): string {
   if (activeTab === 'transcript' && m.transcript) {
     return `<div id="notes-editor" class="notes-editor notes-editable" contenteditable="false" spellcheck="false">${formatSummary(m.transcript)}</div>`;
   }
-  // Default: summary tab — editable
-  return `<div id="notes-editor" class="notes-editor notes-editable${hasSummary || hasNotes ? '' : ' is-empty'}"
-      contenteditable="true" spellcheck="true" data-placeholder="Add your notes\u2026">${hasSummary ? formatSummary(m.summary) : (hasNotes ? esc(m.notes) : '')}</div>`;
+  // Fallback to notes
+  return `<div id="notes-editor" class="notes-editor notes-editable is-empty"
+      contenteditable="true" spellcheck="true" data-placeholder="Add your notes\u2026"></div>`;
 }
 
 function attachListeners(): void {
   // Tab switching
   document.querySelectorAll('.meeting-tab').forEach(btn => {
     btn.addEventListener('click', () => {
-      activeTab = (btn as HTMLElement).dataset.tab as any || 'summary';
-      render();
+      flushSave();
+      activeTab = (btn as HTMLElement).dataset.tab as any || 'notes';
+      loadAll();
     });
   });
   // Perm modal
@@ -1161,7 +1207,7 @@ function attachListeners(): void {
   });
 
   // Meeting
-  document.getElementById('btn-back')?.addEventListener('click', () => { view = 'home'; render(); });
+  document.getElementById('btn-back')?.addEventListener('click', () => { flushSave(); view = 'home'; loadAll(); });
   document.getElementById('btn-stop')?.addEventListener('click', () => stopRecording());
   document.getElementById('meeting-title')?.addEventListener('blur', async (e) => {
     const el = e.target as HTMLElement;
@@ -1205,5 +1251,6 @@ function attachListeners(): void {
   calView = localDateStr(new Date()); // default to today
   runJob(CALENDAR_JOB).catch(() => {});
   await loadAll();
+  await recoverRecordingState();
   await recoverStuckPreps();
 })();
