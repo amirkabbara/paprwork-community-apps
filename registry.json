@@ -33,7 +33,7 @@
       "requirements": []
     },
     {
-      "bundleId": "bundle-1773825249864",
+      "bundleId": "meetings-manager",
       "name": "Meetings Manager",
       "description": "AI-powered meeting manager \u2014 calendar sync, recording, transcription, summarization, prep docs, and memory sync",
       "version": "1.0.0",
@@ -53,7 +53,7 @@
       "platform": [
         "macos"
       ],
-      "path": "bundles/bundle-1773825249864"
+      "path": "bundles/meetings-manager"
     }
   ]
 }
