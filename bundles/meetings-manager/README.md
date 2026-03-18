@@ -1,12 +1,12 @@
 # Meetings Manager
 
-AI-powered meeting manager — week view, one-click prep docs, recording, transcription, and summaries with memory-first context. macOS only.
+AI-powered meeting manager with live recording, transcription, smart summaries, and topic tagging. Record meetings, take notes, and let AI generate structured summaries with action items.
 
 ## Installation
 
 ### Option 1: Import via Paprwork Agent
 ```
-Agent: "Import the bundle from /Users/amirkabbara/PAPR/bundles/bundle-1773817232689"
+Agent: "Import the bundle from /Users/amirkabbara/PAPR/bundles/meetings-manager"
 ```
 
 ### Option 2: Import from GitHub

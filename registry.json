@@ -35,14 +35,15 @@
     {
       "bundleId": "meetings-manager",
       "name": "Meetings Manager",
-      "description": "AI-powered meeting manager \u2014 week view, one-click prep docs, recording, transcription, and summaries with memory-first context. macOS only.",
+      "description": "AI-powered meeting manager with live recording, transcription, smart summaries, and topic tagging. Record meetings, take notes, and let AI generate structured summaries with action items.",
       "version": "1.0.0",
-      "author": "paprwork-team",
+      "author": "amirkabbara",
       "tags": [
         "meetings",
         "ai",
         "productivity",
         "notes",
+        "transcription",
         "calendar"
       ],
       "minPaprworkVersion": "2.0.0",
