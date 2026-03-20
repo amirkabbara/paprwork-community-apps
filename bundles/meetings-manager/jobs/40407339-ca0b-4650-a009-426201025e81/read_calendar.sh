@@ -1,5 +1,5 @@
 #!/bin/bash
-DB="$HOME/PAPR/jobs/8eea1893-4ca5-48ed-bfb4-187b9456fb31/data/data.db"
+DB="/Users/amirkabbara/PAPR/jobs/8eea1893-4ca5-48ed-bfb4-187b9456fb31/data/data.db"
 
 echo "Creating calendar_events table..."
 sqlite3 "$DB" "CREATE TABLE IF NOT EXISTS calendar_events (

@@ -7,7 +7,8 @@
   "dependsOn": [
     {
       "jobId": "8eea1893-4ca5-48ed-bfb4-187b9456fb31",
-      "onStatus": "completed"
+      "onStatus": "completed",
+      "autoTrigger": true
     }
   ],
   "retries": {
@@ -15,10 +16,13 @@
     "backoffMs": 1000
   },
   "retentionDays": 14,
+  "schedule": {
+    "enabled": false
+  },
   "subAgentId": "meeting-summarizer",
   "outputMode": "natural",
   "memoryPolicy": "none",
   "status": "pending",
-  "createdAt": "2026-03-18T18:52:07.862Z",
-  "updatedAt": "2026-03-18T18:52:07.862Z"
+  "createdAt": "2026-03-20T00:49:34.314Z",
+  "updatedAt": "2026-03-20T00:49:34.314Z"
 }

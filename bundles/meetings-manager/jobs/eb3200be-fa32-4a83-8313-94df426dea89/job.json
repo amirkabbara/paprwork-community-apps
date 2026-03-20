@@ -3,7 +3,7 @@
   "name": "Check Screen Recording Permission",
   "type": "shell",
   "folder": "meetings",
-  "command": "#!/bin/bash\nMEETINGS_DB=\"$HOME/PAPR/jobs/8eea1893-4ca5-48ed-bfb4-187b9456fb31/data/data.db\"\nRESULT=$($HOME/PAPR/jobs/54837f40-1e64-4810-a387-f81151d014af/recorder --check-permission 2>&1)\necho \"$RESULT\"\nsqlite3 \"$MEETINGS_DB\" \"DELETE FROM permission_checks; INSERT INTO permission_checks (check_time, result) VALUES (datetime('now'), '$RESULT');\"\necho \"Written to DB: $RESULT\"",
+  "command": "#!/bin/bash\nMEETINGS_DB=\"/Users/amirkabbara/PAPR/jobs/8eea1893-4ca5-48ed-bfb4-187b9456fb31/data/data.db\"\nRESULT=$(/Users/amirkabbara/PAPR/jobs/54837f40-1e64-4810-a387-f81151d014af/recorder --check-permission 2>&1)\necho \"$RESULT\"\nsqlite3 \"$MEETINGS_DB\" \"DELETE FROM permission_checks; INSERT INTO permission_checks (check_time, result) VALUES (datetime('now'), '$RESULT');\"\necho \"Written to DB: $RESULT\"",
   "dependsOn": [],
   "retries": {
     "maxAttempts": 1,
@@ -13,6 +13,6 @@
   "outputMode": "natural",
   "memoryPolicy": "none",
   "status": "pending",
-  "createdAt": "2026-03-18T18:52:06.608Z",
-  "updatedAt": "2026-03-18T18:52:06.608Z"
+  "createdAt": "2026-03-20T00:49:31.567Z",
+  "updatedAt": "2026-03-20T00:49:31.567Z"
 }
